@@ -8,7 +8,7 @@ import "mathUtil"
 //----------------------------------------------------------------------
 STOCKPOS = {"x":80, "y":520}
 WASTEPOS = {"x":220, "y":STOCKPOS.y}
-WASTEOFFSET = 30	// how much the cards sperad out from WASTEPOS
+WASTEOFFSET = 30	// how much the cards speard out from WASTEPOS
 FOUNDATIONPOS = {"x": 430, "y":STOCKPOS.y}
 FOUNDATIONOFFSET = 150
 TABLEAUPOS = {"x":70, "y":320}
@@ -340,8 +340,21 @@ pickUpCards = function(card)
 		globals.lifted = [card]
 		globals.sourcePile = waste
 		waste.pop
+		raiseLifted // Bump Z order so dragged card isn't under other cards
 		return
 	end if
+
+	// Pick up from foundation (top card only) [Fix for Issue #1]
+	for f in foundations
+			if f and f[-1] == card then
+					globals.lifted = [card]
+					globals.sourcePile = f
+					f.pop
+					raiseLifted // Bump Z order so dragged card isn't under other cards
+					return
+			end if
+	end for
+
 	for tab in tabs
 		idx = tab.indexOf(card)
 		if idx == null then continue
@@ -349,10 +362,7 @@ pickUpCards = function(card)
 		globals.sourcePile = tab
 		while tab.len > idx; tab.pop; end while		
 	end for
-	for card in lifted
-		card.y += 10
-		card.moveToFront
-	end for
+	raiseLifted // Bump Z order so dragged card isn't under other cards
 end function
 
 moveCards = function(dx, dy)
@@ -405,6 +415,14 @@ waitForMouseUp = function
 	while mouse.button; yield; end while
 end function
 
+// New helper: bump Z‑order and give a small lift for all lifted cards.
+raiseLifted = function
+    for c in lifted
+        c.y += 10
+        c.moveToFront
+    end for
+end function
+
 clickDragCard = function(card)
 	if stock.contains(card) then
 		waitForMouseUp
@@ -412,7 +430,13 @@ clickDragCard = function(card)
 		return
 	end if
 	if not card.faceUp then return
-	for f in foundations; if f.contains(card) then return waitForMouseUp; end for
+	
+	// If the card is in a foundation, only allow dragging the top card
+	for f in foundations
+			if f.contains(card) and f[-1] != card then
+					return waitForMouseUp
+			end if
+	end for
 	
 	timeDown = time
 	pickUpCards card
