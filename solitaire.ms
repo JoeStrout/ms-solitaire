@@ -8,7 +8,7 @@ import "mathUtil"
 //----------------------------------------------------------------------
 STOCKPOS = {"x":80, "y":520}
 WASTEPOS = {"x":220, "y":STOCKPOS.y}
-WASTEOFFSET = 30	// how much the cards speard out from WASTEPOS
+WASTEOFFSET = 30	// how much the cards spread out from WASTEPOS
 FOUNDATIONPOS = {"x": 430, "y":STOCKPOS.y}
 FOUNDATIONOFFSET = 150
 TABLEAUPOS = {"x":70, "y":320}
@@ -135,6 +135,48 @@ Card.name = function
 	return self.rank + " of " + self.suit
 end function
 
+//----------------------------------------------------------------------
+// Well class: represents a place where cards can be piled.
+//----------------------------------------------------------------------
+
+Well = new Sprite
+Well.tint = "#FFFFFF44"
+Well.update = function(dt); end function
+Well.image = file.loadImage("pics/emptyWell.png")
+Well.localBounds = new Bounds
+Well.localBounds.width = Well.image.width
+Well.localBounds.height = Well.image.height
+
+createWells = function
+	globals.stockWell = new Well
+	stockWell.image = file.loadImage("pics/redoWell.png")
+	stockWell.x = STOCKPOS.x
+	stockWell.y = STOCKPOS.y
+	wellDisp.sprites.push stockWell
+	globals.foundationWells = []
+	cardWellPic = file.loadImage("pics/cardWell.png")
+	for i in range(0,3)
+		well = new Well
+		well.image = cardWellPic
+		well.x = FOUNDATIONPOS.x + FOUNDATIONOFFSET * i
+		well.y = FOUNDATIONPOS.y 
+		foundationWells.push well
+		wellDisp.sprites.push well
+	end for
+	globals.tableauWells = []
+	for i in range(0,7)
+		well = new Well
+		well.x = TABLEAUPOS.x + TABLEAUOFFSET * i
+		well.y = TABLEAUPOS.y
+		tableauWells.push well
+		wellDisp.sprites.push well		
+	end for
+end function
+
+//----------------------------------------------------------------------
+// General helper functions
+//----------------------------------------------------------------------
+
 updateCards = function
 	for sp in cardDisp.sprites
 		sp.update
@@ -177,40 +219,6 @@ createDeck = function
 	end for
 end function
 
-Well = new Sprite
-Well.tint = "#FFFFFF44"
-Well.update = function(dt); end function
-Well.image = file.loadImage("pics/emptyWell.png")
-Well.localBounds = new Bounds
-Well.localBounds.width = Well.image.width
-Well.localBounds.height = Well.image.height
-
-createWells = function
-	globals.stockWell = new Well
-	stockWell.image = file.loadImage("pics/redoWell.png")
-	stockWell.x = STOCKPOS.x
-	stockWell.y = STOCKPOS.y
-	wellDisp.sprites.push stockWell
-	globals.foundationWells = []
-	cardWellPic = file.loadImage("pics/cardWell.png")
-	for i in range(0,3)
-		well = new Well
-		well.image = cardWellPic
-		well.x = FOUNDATIONPOS.x + FOUNDATIONOFFSET * i
-		well.y = FOUNDATIONPOS.y 
-		foundationWells.push well
-		wellDisp.sprites.push well
-	end for
-	globals.tableauWells = []
-	for i in range(0,7)
-		well = new Well
-		well.x = TABLEAUPOS.x + TABLEAUOFFSET * i
-		well.y = TABLEAUPOS.y
-		tableauWells.push well
-		wellDisp.sprites.push well		
-	end for
-end function
-
 dealTableau = function
 	for t in range(0, 6)
 		tabs[t] = []
@@ -225,7 +233,8 @@ dealTableau = function
 	end for
 end function
 
-draw = function(numToDraw = 3)
+draw = function(numToDraw = null)
+	if numToDraw == null then numToDraw = 1 + 2 * (not easyMode)
 	for i in range(1, numToDraw)
 		if not stock then return	// out of cards!
 		card = stock.pop
@@ -263,11 +272,7 @@ end function
 
 processKey = function(k)
 	if k == char(13) or k == char(10) or k == char(3) then // enter/return
-		if stock then
-			draw
-		else
-			restock
-		end if
+		if stock then draw else restock
 	end if
 	if k == char(27) then globals.quitting = true
 end function
@@ -346,13 +351,13 @@ pickUpCards = function(card)
 
 	// Pick up from foundation (top card only) [Fix for Issue #1]
 	for f in foundations
-			if f and f[-1] == card then
-					globals.lifted = [card]
-					globals.sourcePile = f
-					f.pop
-					raiseLifted // Bump Z order so dragged card isn't under other cards
-					return
-			end if
+		if f and f[-1] == card then
+			globals.lifted = [card]
+			globals.sourcePile = f
+			f.pop
+			raiseLifted // Bump Z order so dragged card isn't under other cards
+			return
+		end if
 	end for
 
 	for tab in tabs
@@ -426,16 +431,14 @@ end function
 clickDragCard = function(card)
 	if stock.contains(card) then
 		waitForMouseUp
-		draw 1 + 2 * (not easyMode)
+		draw
 		return
 	end if
 	if not card.faceUp then return
 	
 	// If the card is in a foundation, only allow dragging the top card
 	for f in foundations
-			if f.contains(card) and f[-1] != card then
-					return waitForMouseUp
-			end if
+		if f.contains(card) and f[-1] != card then return waitForMouseUp
 	end for
 	
 	timeDown = time
@@ -505,6 +508,10 @@ showWin = function
 	while not mouse.button; waitButUpdate 0.01; end while
 	waitForMouseUp
 end function
+
+//----------------------------------------------------------------------
+// Setup and main loop
+//----------------------------------------------------------------------
 
 setup = function
 	clear

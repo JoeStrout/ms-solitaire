@@ -1,0 +1,58 @@
+#!/bin/sh
+
+if [ ! -f "./butler" ]; then
+    echo "Butler not found. Installing butler..."
+    curl -L -o butler.zip https://broth.itch.ovh/butler/darwin-amd64/LATEST/archive/default
+    unzip butler.zip
+    chmod +x butler
+    ./butler -V
+    if [ $? -ne 0 ]; then
+    	echo "Error installing butler."
+    	exit 1
+    fi
+    echo "Butler installed successfully."
+    rm butler.zip
+else
+    echo "Butler is already installed; checking for upgrade."
+    ./butler upgrade
+fi
+
+echo
+echo "Cleaning up..."
+rm -f .DS_Store */.DS_Store */*/.DS_Store
+
+echo
+echo "Preparing HTML5 build"
+rm -rf html-build
+unzip ~/svnrepo/stroutandsons/MiniScript/web/files/minimicro-webgl.zip -d .
+mv MiniMicro html-build
+rm html-build/StreamingAssets/user.minidisk
+zip -r html-build/StreamingAssets/user.minidisk *.ms pics sounds -x butler updateitch "*.so" "*.dylib"
+rm html-build/StreamingAssets/bootOpts.grfon
+cp bootOpts.grfon html-build/StreamingAssets/
+cd html-build
+rm ../archive.zip
+zip -r ../archive.zip * -x ".DS_Store"
+cd ..
+./butler push archive.zip joestrout/solitaire:html5
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to push archive.zip to itch.io"
+    exit 1
+fi
+./butler push html-build/StreamingAssets/user.minidisk joestrout/solitaire:minidisk
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to push user.minidisk to itch.io"
+    exit 1
+fi
+
+echo
+echo "Unpacking user.minidisk"
+rm -rf user.minidisk
+unzip html-build/StreamingAssets/user.minidisk -d user.minidisk
+
+# Skipping desktop builds for now.
+# If wanted, go check out the updateitch script in minibasic.
+
+echo "Updated web build at: https://joestrout.itch.io/solitaire"
+open "https://joestrout.itch.io/solitaire"
+
